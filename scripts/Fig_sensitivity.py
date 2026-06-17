@@ -371,60 +371,15 @@ def load_all_data(args) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Da
     data_path = Path(args.data_path).expanduser().resolve()
     allow_cases_one = bool(args.allow_cases_one)
 
-    tbmin_csv = _find_csv_strict(
-        cli_path=args.tbmin_csv,
-        data_path=data_path,
-        filename="Tbmin_enriched.csv",
-        label="Tbmin",
-        relative_candidates=[
-            "cases_outputs_tbmin_sensitivity_v2/tbmin_sensitivity_sigma20km_lambdaMin_100km_lambdaMax_1500km_TbAnvil_235K/tbseed_sensitivity_all_cases_summary.csv",
-            "cases_outputs_tbmin_sensitivity/tbmin_sensitivity_sigma20km_lambdaMin_100km_lambdaMax_1500km_TbAnvil_235K/tbseed_sensitivity_all_cases_summary.csv",
-        ],
-    )
+    tbmin_csv = (data_path / "Tbmin_enriched.csv").resolve()
 
-    sigma_csv = _find_csv_strict(
-        cli_path=args.sigma_csv,
-        data_path=data_path,
-        filename="sigma_enriched.csv",
-        label="sigma",
-        relative_candidates=[
-            "cases_outputs_sigma_sensitivity_v2/sigma_sensitivity_lambdaMin_100km_lambdaMax_1500km/sigma_sensitivity_all_cases.csv",
-            "cases_outputs_sigma_sensitivity/sigma_sensitivity_lambdaMin_100km_lambdaMax_1500km/sigma_sensitivity_all_cases.csv",
-        ],
-    )
+    sigma_csv = (data_path / "sigma_enriched.csv").resolve()
 
-    lambda_max_csv = _find_csv_strict(
-        cli_path=args.lambda_max_csv,
-        data_path=data_path,
-        filename="lambda_max_enriched.csv",
-        label="lambda_max",
-        relative_candidates=[
-            "cases_outputs_lambda_max_sensitivity_v2/lambda_max_sensitivity_sigma50km_lambdaMin_100km_dt_03h/lambda_max_sensitivity_all_cases.csv",
-            "cases_outputs_lambda_max_sensitivity/lambda_max_sensitivity_sigma50km_lambdaMin_100km_dt_03h/lambda_max_sensitivity_all_cases.csv",
-        ],
-    )
+    lambda_max_csv = (data_path / "lambda_max_enriched.csv").resolve()
 
-    delta_t_csv = _find_csv_strict(
-        cli_path=args.delta_t_csv,
-        data_path=data_path,
-        filename="delta_t_enriched.csv",
-        label="delta_t",
-        relative_candidates=[
-            "cases_outputs_delta_t_sensitivity_v2/delta_t_sensitivity_sigma20km_lambdaMin_100km_lambdaMax_1500km/delta_t_sensitivity_all_cases.csv",
-            "cases_outputs_delta_t_sensitivity/delta_t_sensitivity_sigma20km_lambdaMin_100km_lambdaMax_1500km/delta_t_sensitivity_all_cases.csv",
-        ],
-    )
+    delta_t_csv = (data_path / "delta_t_enriched.csv").resolve()
 
-    lambda_min_csv = _find_csv_strict(
-        cli_path=args.lambda_min_csv,
-        data_path=data_path,
-        filename="lambda_min_enriched.csv",
-        label="lambda_min",
-        relative_candidates=[
-            "cases_outputs_lambda_min_sensitivity_v2/lambda_min_sensitivity_sigma20km_lambdaMax_1500km/lambda_min_sensitivity_all_cases.csv",
-            "cases_outputs_lambda_min_sensitivity/lambda_min_sensitivity_sigma20km_lambdaMax_1500km/lambda_min_sensitivity_all_cases.csv",
-        ],
-    )
+    lambda_min_csv = (data_path / "lambda_min_enriched.csv").resolve()
 
     data_Tbmin = read_csv_required(tbmin_csv, "Tbmin")
     data_sigma = read_csv_required(sigma_csv, "sigma")
@@ -2016,12 +1971,12 @@ PARAMETER_TITLES = {
 
 
 TEMPORAL_TITLE_BY_SUFFIX = {
-    "1":  r"$\underset{t}{\max}$",
-    "2":  r"$\underset{t}{\max}$",
-    "3":  r"$\underset{t}{\max}$",
-    "4":  r"$\underset{t}{\max}$",
-    "5":  r"$\underset{t}{\max}$",
-    "6":  r"$\underset{t}{\max}$",
+    "1":  r"$\max_{t}$",
+    "2":  r"$\max_{t}$",
+    "3":  r"$\max_{t}$",
+    "4":  r"$\max_{t}$",
+    "5":  r"$\max_{t}$",
+    "6":  r"$\max_{t}$",
 
     "11": r"$\sum_t$",
     "22": r"$\sum_t$",
@@ -2879,9 +2834,9 @@ def main():
     out_dir = Path(args.out_dir)
     formats = args.formats
 
-    # Nettoyer uniquement les anciennes figures produites par ce script.
-    # Ne touche pas aux CSV.
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # # Nettoyer uniquement les anciennes figures produites par ce script.
+    # # Ne touche pas aux CSV.
+    # out_dir.mkdir(parents=True, exist_ok=True)
 
     for old_fig in out_dir.glob("fig_*.*"):
         if old_fig.suffix.lower() in [".png", ".pdf", ".svg"]:
@@ -2895,16 +2850,16 @@ def main():
         data_delta_t,
     ) = load_all_data(args)
 
-    enriched_dir = out_dir / "enriched_csv"
-    enriched_dir.mkdir(parents=True, exist_ok=True)
+    # enriched_dir = out_dir / "enriched_csv"
+    # enriched_dir.mkdir(parents=True, exist_ok=True)
 
-    data_Tbmin.to_csv(enriched_dir / "Tbmin_enriched.csv", index=False)
-    data_lambda_min.to_csv(enriched_dir / "lambda_min_enriched.csv", index=False)
-    data_sigma.to_csv(enriched_dir / "sigma_enriched.csv", index=False)
-    data_lambda_max.to_csv(enriched_dir / "lambda_max_enriched.csv", index=False)
-    data_delta_t.to_csv(enriched_dir / "delta_t_enriched.csv", index=False)
+    # data_Tbmin.to_csv(enriched_dir / "Tbmin_enriched.csv", index=False)
+    # data_lambda_min.to_csv(enriched_dir / "lambda_min_enriched.csv", index=False)
+    # data_sigma.to_csv(enriched_dir / "sigma_enriched.csv", index=False)
+    # data_lambda_max.to_csv(enriched_dir / "lambda_max_enriched.csv", index=False)
+    # data_delta_t.to_csv(enriched_dir / "delta_t_enriched.csv", index=False)
 
-    print(f"CSV enrichis écrits dans : {enriched_dir.resolve()}")
+    # print(f"CSV enrichis écrits dans : {enriched_dir.resolve()}")
     
     plot_all_focus_IA_IE_pairs(
         data_sigma=data_sigma,
