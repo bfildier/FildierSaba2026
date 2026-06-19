@@ -36,9 +36,6 @@ import matplotlib
 matplotlib.use("Agg")  # backend non-interactif (pas de display X requis)
 import matplotlib.pyplot as plt
 import math
-from netCDF4 import Dataset
-from scipy.spatial import ConvexHull, QhullError
-from scipy import ndimage as ndi
 
 # =============================================================================
 # Configuration par defaut
@@ -48,7 +45,7 @@ DEFAULT_DATA_PATH = Path(
     "/home/bfildier/analyses/FildierSaba2026/input/sensitivity_analysis"
 )
 
-DEFAULT_OUT_DIR = Path("../figures/tests")
+DEFAULT_OUT_DIR = Path("../figures/")
 
 # Liste des cas a tracer
 CASE_IDS = [
@@ -61,6 +58,17 @@ CASE_IDS = [
 #     "C2"
 # ]
 N_C = len(CASE_IDS)
+
+# lambda_agg (= lambda_max) est fixe pour sigma / lambda_min / Tbmin.
+LAMBDA_AGG_FIXED_KM = 1500.0
+
+# Suffixes IA/IE pour lesquels on genere une figure (les autres restent
+# disponibles en option, voir IA_IE_SUFFIXES plus bas).
+DEFAULT_METRIC_SUFFIXES = ["2"]
+
+# Suffixes pour lesquels la courbe IA (adjacency) est masquee car
+# systematiquement nulle (ex: IA2).
+SKIP_IA_SUFFIXES = {"2"}
 
 CMAP = plt.get_cmap("nipy_spectral")
 NORM = plt.Normalize(0, max(N_C - 1, 1))
@@ -120,6 +128,14 @@ def load_all_data(args) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         if "case_id" in df.columns:
             df["case_id"] = df["case_id"].map(_clean_case_id)
+
+        # Aire d'enveloppe normalisee : A_max^{90} / (pi * lambda_agg^2).
+        # lambda_agg est fixe (sigma, lambda_min, Tbmin n'ont pas
+        # de lambda_max variable).
+        if "Amax_p90_km2" in df.columns:
+            df["normalized_envelope_area_p90"] = df["Amax_p90_km2"] / (
+                math.pi * LAMBDA_AGG_FIXED_KM ** 2
+            )
 
         loaded[varid] = df
 
@@ -246,10 +262,10 @@ IA_IE_SUFFIXES = [
 
 PARAMETER_TITLES = {
     "sigma": r"$\sigma$",
-    "lambda_min": r"$\lambda_{\min}$",
-    "lambda_max": r"$\lambda_{\max}$",
-    "Tbmin": r"$T_{b,\min}$",
-    "delta_t": r"$\Delta t$",
+    "lambda_min": r"$\lambda_{core}$",
+    "lambda_max": r"$\lambda_{agg}$",
+    "Tbmin": r"$T_{b,core}$",
+    "delta_t": r"$\tau_{agg}$",
     "all_parameters": "All parameters",
 }
 
@@ -502,11 +518,23 @@ def _plot_median_iqr_curve(
     return True
 
 
-def _style_axis(ax, *, xlabel: str, ylabel: str, title: str):
+def _style_axis(ax, *, xlabel: str, ylabel: str, title: Optional[str] = None):
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(title, fontsize=10)
+    if title:
+        ax.set_title(title, fontsize=10)
     ax.grid(True, linestyle="--", alpha=0.25)
+
+
+def _make_panel_square(ax) -> None:
+    """
+    Force un panel carre, de maniere compatible avec les anciennes
+    versions de matplotlib (set_box_aspect n'existe qu'a partir de 3.3).
+    """
+    try:
+        ax.set_box_aspect(1)
+    except AttributeError:
+        pass
 
 
 def _plot_one_parameter_row_for_metric_pair(
@@ -525,9 +553,9 @@ def _plot_one_parameter_row_for_metric_pair(
     """
     Trace une ligne avec 3 colonnes :
 
-      1. Nombre final + fraction 1 - n_i/n_f
-      2. Convex hull fraction + Gini(Amax)   [colonnes fusionnees]
-      3. IA/IE final + IA/IE initial si disponibles
+      1. "Number"    : nombre final + fraction 1 - n_i/n_f
+      2. "Size"       : aire d'enveloppe normalisee + heterogeneite (Gini)
+      3. "Boundaries" : IA/IE final + IA/IE initial si disponibles
     """
 
     required_cols = [
@@ -559,10 +587,11 @@ def _plot_one_parameter_row_for_metric_pair(
 
         return False
 
-    param_title = parameter_display_name(parameter_name)
+    suffix = metric_suffix_from_name(ia_metric)
+    skip_ia = suffix in SKIP_IA_SUFFIXES
 
     # ==================================================================
-    # Colonne 1 : nombre + fraction 1 - n_i/n_f
+    # Colonne 1 ("Number") : nombre + fraction 1 - n_i/n_f
     # ==================================================================
     ax = axs_row[0]
     ax.axvline(x=default_x, linewidth=1, linestyle=":", c="k")
@@ -582,7 +611,6 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         xlabel=xlabel,
         ylabel="Number of final aggregates",
-        title=rf"{param_title} : number / fraction",
     )
 
     if n_ylim is not None:
@@ -595,7 +623,7 @@ def _plot_one_parameter_row_for_metric_pair(
         data,
         x_parameter=x_parameter,
         metric="fraction_after_initialization",
-        label=r"$1 - n_i/n_f$",
+        label="Fraction determined at initialization",
         color="grey",
         linestyle="--",
         show_iqr=True,
@@ -609,21 +637,26 @@ def _plot_one_parameter_row_for_metric_pair(
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     if lines1 or lines2:
-        ax.legend(lines1 + lines2, labels1 + labels2, fontsize=7, loc="best")
+        ax.legend(
+            lines1 + lines2, labels1 + labels2,
+            fontsize=7, loc="best", framealpha=0.85,
+        )
+
+    _make_panel_square(ax)
 
     # ==================================================================
-    # Colonne 2 (fusion des anciennes colonnes 2 et 3) :
-    # Convex hull fraction (gauche) + Gini(Amax) (droite)
+    # Colonne 2 ("Size") : aire d'enveloppe normalisee (gauche)
+    # + heterogeneite / Gini (droite)
     # ==================================================================
     ax = axs_row[1]
     ax.axvline(x=default_x, linewidth=1, linestyle=":", c="k")
 
-    plotted_hull = _plot_median_iqr_curve(
+    plotted_env = _plot_median_iqr_curve(
         ax,
         data,
         x_parameter=x_parameter,
-        metric="convex_hull_lambda_fraction",
-        label=r"$\max_{t,a} A_{\mathrm{hull}} / (\pi \lambda_{\max}^2)$",
+        metric="normalized_envelope_area_p90",
+        label=r"$A_{\max}^{90}/(\pi \lambda_{agg}^2)$",
         color="purple",
         linestyle="-.",
         show_iqr=True,
@@ -632,14 +665,13 @@ def _plot_one_parameter_row_for_metric_pair(
     _style_axis(
         ax,
         xlabel=xlabel,
-        ylabel="Convex-hull fraction",
-        title=rf"{param_title} : envelope / Gini",
+        ylabel="Normalized envelope area",
     )
 
-    if plotted_hull:
+    if plotted_env:
         ax.set_ylim((-0.01, 1.05))
 
-    ax.set_ylabel("Convex-hull fraction", color="purple")
+    ax.set_ylabel("Normalized envelope area", color="purple")
     ax.tick_params(axis="y", colors="purple")
 
     ax_gini = ax.twinx()
@@ -656,7 +688,7 @@ def _plot_one_parameter_row_for_metric_pair(
         show_iqr=True,
     )
 
-    ax_gini.set_ylabel(r"$Gini(A_{\max})$", color=gini_color)
+    ax_gini.set_ylabel("Heterogeneity", color=gini_color)
     ax_gini.tick_params(axis="y", colors=gini_color)
 
     if plotted_gini:
@@ -665,47 +697,53 @@ def _plot_one_parameter_row_for_metric_pair(
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax_gini.get_legend_handles_labels()
     if lines1 or lines2:
-        ax.legend(lines1 + lines2, labels1 + labels2, fontsize=7, loc="best")
+        ax.legend(
+            lines1 + lines2, labels1 + labels2,
+            fontsize=7, loc="best", framealpha=0.85,
+        )
+
+    _make_panel_square(ax)
 
     # ==================================================================
-    # Colonne 3 : IA/IE final + IA/IE initial
+    # Colonne 3 ("Boundaries") : IA/IE final + IA/IE initial
     # ==================================================================
     ax = axs_row[2]
     ax.axvline(x=default_x, linewidth=1, linestyle=":", c="k")
 
-    suffix = metric_suffix_from_name(ia_metric)
-
     init_ia_metric = f"INIT_IA{suffix}"
     init_ie_metric = f"INIT_IE{suffix}"
 
-    _plot_median_iqr_curve(
-        ax,
-        data,
-        x_parameter=x_parameter,
-        metric=ia_metric,
-        label=rf"{ia_metric} final",
-        color="blue",
-        linestyle="-",
-        show_iqr=True,
-    )
+    if not skip_ia:
+        _plot_median_iqr_curve(
+            ax,
+            data,
+            x_parameter=x_parameter,
+            metric=ia_metric,
+            label=r"Final $I_A$",
+            color="blue",
+            linestyle="-",
+            show_iqr=True,
+        )
 
-    _plot_median_iqr_curve(
-        ax,
-        data,
-        x_parameter=x_parameter,
-        metric=init_ia_metric,
-        label=rf"{init_ia_metric} initial",
-        color="royalblue",
-        linestyle="--",
-        show_iqr=True,
-    )
+        _plot_median_iqr_curve(
+            ax,
+            data,
+            x_parameter=x_parameter,
+            metric=init_ia_metric,
+            label=r"Initial $I_A$",
+            color="royalblue",
+            linestyle="--",
+            show_iqr=True,
+        )
 
     _style_axis(
         ax,
         xlabel=xlabel,
-        ylabel=metric_axis_label(ia_metric, language="en", initial=False),
-        title=rf"{param_title} : final / initial metrics",
+        ylabel="Adjacency",
     )
+
+    ax.set_ylabel("Adjacency", color="blue")
+    ax.tick_params(axis="y", colors="blue")
 
     ax2 = ax.twinx()
 
@@ -714,7 +752,7 @@ def _plot_one_parameter_row_for_metric_pair(
         data,
         x_parameter=x_parameter,
         metric=ie_metric,
-        label=rf"{ie_metric} final",
+        label=r"Final $I_E$",
         color="green",
         linestyle="-",
         show_iqr=True,
@@ -725,15 +763,13 @@ def _plot_one_parameter_row_for_metric_pair(
         data,
         x_parameter=x_parameter,
         metric=init_ie_metric,
-        label=rf"{init_ie_metric} initial",
+        label=r"Initial $I_E$",
         color="limegreen",
         linestyle="--",
         show_iqr=True,
     )
 
-    ax.set_ylabel(metric_axis_label(ia_metric, language="en", initial=False), color="blue")
-    ax.tick_params(axis="y", colors="blue")
-    ax2.set_ylabel(metric_axis_label(ie_metric, language="en", initial=False), color="green")
+    ax2.set_ylabel("Entanglement", color="green")
     ax2.tick_params(axis="y", colors="green")
 
     if metric_ylim is not None:
@@ -743,7 +779,12 @@ def _plot_one_parameter_row_for_metric_pair(
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     if lines1 or lines2:
-        ax.legend(lines1 + lines2, labels1 + labels2, fontsize=7, loc="best")
+        ax.legend(
+            lines1 + lines2, labels1 + labels2,
+            fontsize=7, loc="best", framealpha=0.85,
+        )
+
+    _make_panel_square(ax)
 
     return True
 
@@ -793,7 +834,7 @@ def plot_focus_grouped_by_metric_pair(
             parameter_name="lambda_min",
             data=data_lambda_min,
             x_parameter="lambda_min_km",
-            xlabel=r"$\lambda_{\min}$ (km)",
+            xlabel=r"$\lambda_{core}$ (km)",
             default_x=100,
             n_ylim=(0, 500),
             metric_ylim=metric_ylim,
@@ -802,7 +843,7 @@ def plot_focus_grouped_by_metric_pair(
             parameter_name="Tbmin",
             data=data_Tbmin,
             x_parameter="Tb_seed_K",
-            xlabel=r"$T_{b,\min}$ (K)",
+            xlabel=r"$T_{b,core}$ (K)",
             default_x=220,
             n_ylim=(0, 200),
             metric_ylim=metric_ylim,
@@ -811,10 +852,12 @@ def plot_focus_grouped_by_metric_pair(
 
     n_rows = len(parameter_specs)
 
+    cell_size = 4.0  # taille (pouces) de chaque panel, carre
+
     fig, axs = plt.subplots(
         n_rows,
         3,
-        figsize=(14.5, 3.2 * n_rows),
+        figsize=(cell_size * 3, cell_size * n_rows),
         squeeze=False,
     )
 
@@ -837,20 +880,18 @@ def plot_focus_grouped_by_metric_pair(
         if ok:
             n_ok += 1
 
-    fig.suptitle(
-        focus_title_for_pair("all_parameters", ia_metric, ie_metric)
-        + "\n"
-        + rf"{ia_metric} / {ie_metric}",
-        fontsize=14,
-        y=0.995,
-    )
+    column_titles = ["Number", "Size", "Boundaries"]
+    for col, col_title in enumerate(column_titles):
+        axs[0, col].set_title(col_title, fontsize=13, fontweight="bold")
 
-    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.96])
+    fig.tight_layout()
 
-    grouped_out_dir = out_dir / "by_metric"
+    # grouped_out_dir = out_dir / "by_metric"
+    grouped_out_dir = out_dir 
     grouped_out_dir.mkdir(parents=True, exist_ok=True)
 
-    stem = f"fig_by_metric_{ia_metric}_{ie_metric}_all_parameters"
+    # stem = f"fig_by_metric_{ia_metric}_{ie_metric}_all_parameters"
+    stem = f"Fig_sensitivity_sigma_lambdacore_Tbcore"
 
     if n_ok == 0:
         print(f"[SKIP] figure {ia_metric}/{ie_metric}: aucune ligne traçable.")
@@ -867,17 +908,23 @@ def plot_all_focus_IA_IE_pairs(
     data_Tbmin: pd.DataFrame,
     out_dir: Path,
     formats: Iterable[str],
+    suffixes: Iterable[str] = DEFAULT_METRIC_SUFFIXES,
 ):
     """
-    Génère une figure par paire IA/IE.
+    Génère une figure par paire IA/IE, pour les suffixes demandes.
+
+    Par defaut, seule la métrique "2" est tracée (IA2/IE2), car c'est
+    la seule demandée pour l'instant. Les autres suffixes du notebook
+    (1, 3, 4, 5, 6, 11, 22, ..., 666, voir IA_IE_SUFFIXES) restent
+    disponibles en passant explicitement `suffixes=IA_IE_SUFFIXES`
+    (ou toute autre sous-liste).
 
     Sortie :
-      OUT_DIR / by_metric / fig_by_metric_IA1_IE1_all_parameters.png
       OUT_DIR / by_metric / fig_by_metric_IA2_IE2_all_parameters.png
       ...
     """
 
-    for suffix in IA_IE_SUFFIXES:
+    for suffix in suffixes:
         ia_metric = f"IA{suffix}"
         ie_metric = f"IE{suffix}"
 
@@ -918,9 +965,21 @@ def parse_args():
     parser.add_argument(
         "--formats",
         nargs="+",
-        default=["png"],
+        default=["pdf"],
         choices=["png", "pdf", "svg"],
         help="Formats de sortie.",
+    )
+
+    parser.add_argument(
+        "--metric-suffixes",
+        nargs="+",
+        default=DEFAULT_METRIC_SUFFIXES,
+        choices=IA_IE_SUFFIXES,
+        help=(
+            "Suffixes IA/IE a tracer (par defaut: seulement '2'). "
+            "Exemple pour tout tracer: --metric-suffixes 1 2 3 4 5 6 "
+            "11 22 33 44 55 66 111 222 333 444 555 666"
+        ),
     )
 
     return parser.parse_args()
@@ -944,6 +1003,7 @@ def main():
         data_Tbmin=data_Tbmin,
         out_dir=out_dir,
         formats=formats,
+        suffixes=args.metric_suffixes,
     )
 
     print(f"Figures ecrites dans : {out_dir.resolve()}")
