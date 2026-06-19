@@ -42,7 +42,7 @@ import math
 # =============================================================================
 
 DEFAULT_DATA_PATH = Path(
-    "/home/bfildier/analyses/FildierSaba2026/input/sensitivity_analysis"
+    "../input/sensitivity_analysis"
 )
 
 DEFAULT_OUT_DIR = Path("../figures/")
@@ -623,14 +623,14 @@ def _plot_one_parameter_row_for_metric_pair(
         data,
         x_parameter=x_parameter,
         metric="fraction_after_initialization",
-        label="Fraction determined at initialization",
+        label=r"$1 - n_i/n_f$",
         color="grey",
         linestyle="--",
         show_iqr=True,
     )
 
     if plotted_frac:
-        ax2.set_ylabel("fraction of aggregates\nforming after initialization", color="grey")
+        ax2.set_ylabel("Fraction determined after initialization", color="grey")
         ax2.tick_params(axis="y", colors="grey")
         ax2.set_ylim((-0.01, 1.01))
 
@@ -639,10 +639,10 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=7, loc="best", framealpha=0.85,
+            fontsize=10, loc="best", framealpha=0.85,
         )
 
-    _make_panel_square(ax)
+    # _make_panel_square(ax)
 
     # ==================================================================
     # Colonne 2 ("Size") : aire d'enveloppe normalisee (gauche)
@@ -655,8 +655,8 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         data,
         x_parameter=x_parameter,
-        metric="normalized_envelope_area_p90",
-        label=r"$A_{\max}^{90}/(\pi \lambda_{agg}^2)$",
+        metric="convex_hull_lambda_fraction",
+        label=r"$\max (H(A_{\max})) / (\pi \lambda_{agg}^2)$",
         color="purple",
         linestyle="-.",
         show_iqr=True,
@@ -682,7 +682,7 @@ def _plot_one_parameter_row_for_metric_pair(
         data,
         x_parameter=x_parameter,
         metric="Amax_gini",
-        label=r"$Gini(A_{\max})$",
+        label=r"$\text{Gini}(A_{\max})$",
         color=gini_color,
         linestyle="-",
         show_iqr=True,
@@ -699,10 +699,10 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=7, loc="best", framealpha=0.85,
+            fontsize=10, loc="best", framealpha=0.85,
         )
 
-    _make_panel_square(ax)
+    # _make_panel_square(ax)
 
     # ==================================================================
     # Colonne 3 ("Boundaries") : IA/IE final + IA/IE initial
@@ -713,28 +713,16 @@ def _plot_one_parameter_row_for_metric_pair(
     init_ia_metric = f"INIT_IA{suffix}"
     init_ie_metric = f"INIT_IE{suffix}"
 
-    if not skip_ia:
-        _plot_median_iqr_curve(
-            ax,
-            data,
-            x_parameter=x_parameter,
-            metric=ia_metric,
-            label=r"Final $I_A$",
-            color="blue",
-            linestyle="-",
-            show_iqr=True,
-        )
-
-        _plot_median_iqr_curve(
-            ax,
-            data,
-            x_parameter=x_parameter,
-            metric=init_ia_metric,
-            label=r"Initial $I_A$",
-            color="royalblue",
-            linestyle="--",
-            show_iqr=True,
-        )
+    _plot_median_iqr_curve(
+        ax,
+        data,
+        x_parameter=x_parameter,
+        metric=ia_metric,
+        label=r"Final $I_A$",
+        color="blue",
+        linestyle="-",
+        show_iqr=True,
+    )
 
     _style_axis(
         ax,
@@ -781,10 +769,10 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=7, loc="best", framealpha=0.85,
+            fontsize=10, loc="best", framealpha=0.85,
         )
 
-    _make_panel_square(ax)
+    # _make_panel_square(ax)
 
     return True
 
@@ -852,12 +840,12 @@ def plot_focus_grouped_by_metric_pair(
 
     n_rows = len(parameter_specs)
 
-    cell_size = 4.0  # taille (pouces) de chaque panel, carre
+    cell_size = 3.5  # taille (pouces) de chaque panel, carre
 
     fig, axs = plt.subplots(
         n_rows,
         3,
-        figsize=(cell_size * 3, cell_size * n_rows),
+        figsize=(cell_size * 3.5, cell_size * n_rows),
         squeeze=False,
     )
 
@@ -882,7 +870,7 @@ def plot_focus_grouped_by_metric_pair(
 
     column_titles = ["Number", "Size", "Boundaries"]
     for col, col_title in enumerate(column_titles):
-        axs[0, col].set_title(col_title, fontsize=13, fontweight="bold")
+        axs[0, col].set_title(col_title, fontsize=13, fontweight="bold",pad=8)
 
     fig.tight_layout()
 
