@@ -879,7 +879,7 @@ def plot_focus_grouped_by_metric_pair(
     grouped_out_dir.mkdir(parents=True, exist_ok=True)
 
     # stem = f"fig_by_metric_{ia_metric}_{ie_metric}_all_parameters"
-    stem = f"Fig_sensitivity_sigma_lambdacore_Tbcore"
+    stem = f"fig_sensitivity_roots"
 
     if n_ok == 0:
         print(f"[SKIP] figure {ia_metric}/{ie_metric}: aucune ligne traçable.")
