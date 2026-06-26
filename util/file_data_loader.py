@@ -1,8 +1,9 @@
+
 # -------------------------------------------------------------------------
 from __future__ import annotations
 import os,re
 import glob
-import cv2
+# import cv2
 import hashlib
 import logging, warnings, gc
 from contextlib import contextmanager
@@ -23,9 +24,8 @@ from zarr.storage import ZipStore
 from netCDF4 import Dataset as NetCDF4Dataset
 from xarray.conventions import SerializationWarning
 
-from code_cwt.algo_version_6.file_thermal_conversion import (
-    ensure_tb_data
-)
+from file_thermal_conversion import ensure_tb_data
+
 
 # Logger dédié pour ce module
 logging.basicConfig(

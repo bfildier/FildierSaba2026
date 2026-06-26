@@ -42,7 +42,7 @@ show_coords = {
     "C13": ("2016-07-17T16:00", 2.5, 22), # Disjoint aggregate non merging (except southern part)
     "C14": ("2016-06-09T21:00", 10, 0), # AEW
     "C15": ("2016-08-06T20:30", 5.0, 25.0), # Disjoint aggregate non merging (except southern part)
-    "C16": ("2016-08-25T04:30", 5.0, 20.0), # Upscale circular merging (several aggregates) with larger-scale 2-day oscillations
+    "C16": ("2016-08-24T04:30", 5.0, 20.0), # Upscale circular merging (several aggregates) with larger-scale 2-day oscillations
     "C17": ("2016-07-06T07:00", 20, 130), # tropical cyclone
     "C18": ("2016-08-05T23:00", 20, 150), # tropical cyclone
     "C19": ("2016-08-14T00:30", 20, 145), # tropical cyclone
@@ -118,31 +118,6 @@ def _to_pd_index(arr):
         return pd.to_datetime(arr)
     except Exception:
         return pd.DatetimeIndex([pd.Timestamp(str(t)) for t in arr])
-
-# def gather_files_for_case(data_dir, satellite, time_str):
-#     """Liste les fichiers pour le cas (par jour) pour limiter l'IO."""
-#     if satellite not in SAT_MAP:
-#         raise ValueError(
-#             f"Satellite inconnu: {satellite} (attendus: {list(SAT_MAP.keys())})"
-#         )
-
-#     subdir, prefix, suffix = SAT_MAP[satellite]
-
-#     time_iso = datetime.fromisoformat(time_str)
-#     time_fmt = datetime.strftime(time_iso,"%Y-%m-%dT%H-%M-00")
-
-#     files = []
-#     for y, m, d in day_iter(time_iso, time_iso):
-#         pat = os.path.join(
-#             data_dir,
-#             subdir,
-#             f"{y}",
-#             f"{y}_{m:02d}_{d:02d}*",
-#             f"{prefix}_{time_fmt}_{suffix}.nc"
-#         )
-#         files.extend(glob.glob(pat))
-
-#     return files[0]
 
 # Regex pour extraire l'horodatage "YYYY-MM-DDTHH-MM-SS" depuis un nom de fichier
 _TS_RE = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})")
@@ -301,7 +276,6 @@ def plot_cases_grid(
     coast_lw: float = 0.3,
     contour_lw: float = 0.4,
     grid_alpha: float = 0.8,
-    suptitle: str = "Température de brillance (K) — un fichier par cas",
 ) -> str:
     """
     Génère une figure unique en grille nrows x ncols, un panneau par cas
@@ -317,12 +291,17 @@ def plot_cases_grid(
     if len(case_ids) > n_panels:
         raise ValueError(f"{len(case_ids)} cas mais grille {nrows}x{ncols} = {n_panels} places.")
 
-    # table case_id -> satellite, à partir de cases_df["Old ID"] / ["Satellite"]
+    # table case_id -> satellite / New ID, à partir de cases_df["Old ID"]
     cases_df = cases_df.copy()
     cases_df["ID_clean"] = cases_df["Old ID"].map(_clean_case_id)
     sat_by_case = (
         cases_df.drop_duplicates("ID_clean")
         .set_index("ID_clean")["Satellite"]
+        .to_dict()
+    )
+    newid_by_case = (
+        cases_df.drop_duplicates("ID_clean")
+        .set_index("ID_clean")["New ID"]
         .to_dict()
     )
 
@@ -334,10 +313,12 @@ def plot_cases_grid(
         cmap.set_bad("white")
 
     fig = plt.figure(figsize=(panel_size * ncols, panel_size * nrows), dpi=dpi, facecolor="white")
-    if suptitle:
-        fig.suptitle(suptitle, fontsize=13, y=0.995)
 
     last_im = None
+
+    # lettres de panneau (a), (b), (c), ...
+    import string
+    panel_letters = list(string.ascii_lowercase)
 
     for k, case_id in enumerate(case_ids):
         print("--------------------------------------------------")
@@ -348,6 +329,8 @@ def plot_cases_grid(
 
         time_str, lat_c, lon_c = show_coords[case_id]
         sat = sat_by_case.get(case_id)
+        new_id = newid_by_case.get(case_id, case_id)
+        panel_label = f"({panel_letters[k]})" if k < len(panel_letters) else f"({k + 1})"
 
         latmin, latmax = lat_c - delta_lat / 2, lat_c + delta_lat / 2
         lonmin, lonmax = lon_c - delta_lon / 2, lon_c + delta_lon / 2
@@ -357,7 +340,9 @@ def plot_cases_grid(
 
         if sat is None or (isinstance(sat, float) and np.isnan(sat)):
             ax.set_axis_off()
-            ax.set_title(f"{case_id} (satellite inconnu)", fontsize=8, color="gray")
+            ax.set_title(f"{new_id} (satellite inconnu)", fontsize=8, color="gray")
+            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+                    fontweight="bold", va="top", ha="left", zorder=10)
             continue
 
         sat = str(sat).strip()
@@ -370,7 +355,9 @@ def plot_cases_grid(
             print("file: %s" % file_used)
         except Exception as e:
             ax.set_axis_off()
-            ax.set_title(f"{case_id} (erreur)", fontsize=8, color="red")
+            ax.set_title(f"{new_id} (erreur)", fontsize=8, color="red")
+            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+                    fontweight="bold", va="top", ha="left", zorder=10)
             print(f"!! {case_id}: {e}")
             continue
 
@@ -398,7 +385,13 @@ def plot_cases_grid(
             transform=ccrs.PlateCarree()
         )
 
-        ax.set_title(f"{case_id}  {t_used}", fontsize=8, pad=2)
+        ax.set_title(f"{new_id} - {t_used}", fontsize=10, pad=2)
+
+        # numérotation du panneau, position identique en haut à gauche
+        ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+                fontweight="bold", va="top", ha="left", zorder=10,
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                          edgecolor="none", alpha=0.7))
 
     # cases vides restantes si moins de cas que de places
     for k in range(len(case_ids), n_panels):
@@ -406,12 +399,12 @@ def plot_cases_grid(
         ax.set_axis_off()
 
     if last_im is not None:
-        cax = fig.add_axes([0.25, 0.02, 0.5, 0.015])
+        cax = fig.add_axes([0.30, 0.02, 0.4, 0.012])
         cb = fig.colorbar(last_im, cax=cax, orientation="horizontal")
         cb.set_label('Infrared brightness temperature (K)', fontsize=10)
         cb.ax.tick_params(labelsize=10)
 
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.07, wspace=0.05, hspace=0.25)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.96, bottom=0.07, wspace=0.05, hspace=0.25)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, bbox_inches="tight")
