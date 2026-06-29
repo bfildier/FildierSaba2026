@@ -272,7 +272,7 @@ def plot_cases_grid(
     nrows: int = 5,
     ncols: int = 5,
     panel_size: float = 3,
-    dpi: int = 600,
+    dpi: int = 300,
     coast_lw: float = 0.3,
     contour_lw: float = 0.4,
     grid_alpha: float = 0.8,
@@ -340,8 +340,8 @@ def plot_cases_grid(
 
         if sat is None or (isinstance(sat, float) and np.isnan(sat)):
             ax.set_axis_off()
-            ax.set_title(f"{new_id} (satellite inconnu)", fontsize=8, color="gray")
-            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+            ax.set_title(f"{new_id} (satellite inconnu)", fontsize=12, color="gray")
+            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=12,
                     fontweight="bold", va="top", ha="left", zorder=10)
             continue
 
@@ -355,8 +355,8 @@ def plot_cases_grid(
             print("file: %s" % file_used)
         except Exception as e:
             ax.set_axis_off()
-            ax.set_title(f"{new_id} (erreur)", fontsize=8, color="red")
-            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+            ax.set_title(f"{new_id} (erreur)", fontsize=12, color="red")
+            ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=12,
                     fontweight="bold", va="top", ha="left", zorder=10)
             print(f"!! {case_id}: {e}")
             continue
@@ -385,10 +385,10 @@ def plot_cases_grid(
             transform=ccrs.PlateCarree()
         )
 
-        ax.set_title(f"{new_id} - {t_used}", fontsize=10, pad=2)
+        ax.set_title(f"{new_id} - {t_used}", fontsize=12, pad=2)
 
         # numérotation du panneau, position identique en haut à gauche
-        ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=9,
+        ax.text(0.02, 0.98, panel_label, transform=ax.transAxes, fontsize=12,
                 fontweight="bold", va="top", ha="left", zorder=10,
                 bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
                           edgecolor="none", alpha=0.7))
@@ -401,8 +401,8 @@ def plot_cases_grid(
     if last_im is not None:
         cax = fig.add_axes([0.30, 0.02, 0.4, 0.012])
         cb = fig.colorbar(last_im, cax=cax, orientation="horizontal")
-        cb.set_label('Infrared brightness temperature (K)', fontsize=10)
-        cb.ax.tick_params(labelsize=10)
+        cb.set_label('Infrared brightness temperature (K)', fontsize=16)
+        cb.ax.tick_params(labelsize=14)
 
     fig.subplots_adjust(left=0.02, right=0.98, top=0.96, bottom=0.07, wspace=0.05, hspace=0.25)
 
