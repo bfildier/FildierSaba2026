@@ -36,6 +36,11 @@ import matplotlib
 matplotlib.use("Agg")  # backend non-interactif (pas de display X requis)
 import matplotlib.pyplot as plt
 import math
+import matplotlib as mpl
+
+mpl.rcParams['text.usetex'] = True
+mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] #for \text command
+
 
 # =============================================================================
 # Configuration par defaut
@@ -45,7 +50,7 @@ DEFAULT_DATA_PATH = Path(
     "../input/sensitivity_analysis"
 )
 
-DEFAULT_OUT_DIR = Path("../figures/")
+DEFAULT_OUT_DIR = Path("../figures")
 
 # Liste des cas a tracer
 CASE_IDS = [
@@ -94,11 +99,11 @@ def _safe_div(num, den):
     return out
 
 
-def _first_existing_col(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
-    for c in candidates:
-        if c in df.columns:
-            return c
-    return None
+# def _first_existing_col(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
+#     for c in candidates:
+#         if c in df.columns:
+#             return c
+#     return None
 
 
 # =============================================================================
@@ -518,9 +523,13 @@ def _plot_median_iqr_curve(
     return True
 
 
-def _style_axis(ax, *, xlabel: str, ylabel: str, title: Optional[str] = None):
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+def _style_axis(ax, *, xlabel: str, ylabel: str, color: str, title: Optional[str] = None):
+
+    fontsize_label = 13
+    ax.set_xlabel(xlabel,fontsize=fontsize_label)
+    ax.set_ylabel(ylabel,fontsize=fontsize_label,color=color)
+    ax.tick_params(axis="y", colors=color)
+
     if title:
         ax.set_title(title, fontsize=10)
     ax.grid(True, linestyle="--", alpha=0.25)
@@ -611,6 +620,7 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         xlabel=xlabel,
         ylabel="Number of final aggregates",
+        color='black',
     )
 
     if n_ylim is not None:
@@ -629,17 +639,21 @@ def _plot_one_parameter_row_for_metric_pair(
         show_iqr=True,
     )
 
-    if plotted_frac:
-        ax2.set_ylabel("Fraction determined after initialization", color="grey")
-        ax2.tick_params(axis="y", colors="grey")
-        ax2.set_ylim((-0.01, 1.01))
+    # if plotted_frac:
+    _style_axis(
+        ax2,
+        xlabel=xlabel,
+        ylabel="Fraction formed after initialization",
+        color='grey',
+    )
+    ax2.set_ylim((-0.01, 1.01))
 
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=10, loc="best", framealpha=0.85,
+            fontsize=8, loc="best", framealpha=0.85,
         )
 
     # _make_panel_square(ax)
@@ -655,8 +669,9 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         data,
         x_parameter=x_parameter,
-        metric="convex_hull_lambda_fraction",
-        label=r"$\max (H(A_{\max})) / (\pi \lambda_{agg}^2)$",
+        # metric="convex_hull_lambda_fraction",
+        metric="convex_hull_lambda_fraction_p95",
+        label=r"$\displaystyle \left.\left(\max_{a,t} H(a,t)\right)^{95} \right/ (\pi \lambda_{agg}^2)$",
         color="purple",
         linestyle="-.",
         show_iqr=True,
@@ -666,13 +681,14 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         xlabel=xlabel,
         ylabel="Normalized envelope area",
+        color='purple',
     )
 
     if plotted_env:
         ax.set_ylim((-0.01, 1.05))
 
-    ax.set_ylabel("Normalized envelope area", color="purple")
-    ax.tick_params(axis="y", colors="purple")
+    # ax.set_ylabel("Normalized envelope area", color="purple")
+    # ax.tick_params(axis="y", colors="purple")
 
     ax_gini = ax.twinx()
 
@@ -688,8 +704,12 @@ def _plot_one_parameter_row_for_metric_pair(
         show_iqr=True,
     )
 
-    ax_gini.set_ylabel("Heterogeneity", color=gini_color)
-    ax_gini.tick_params(axis="y", colors=gini_color)
+    _style_axis(
+        ax_gini,
+        xlabel='',
+        ylabel="Heterogeneity",
+        color=gini_color,
+    )
 
     if plotted_gini:
         ax_gini.set_ylim((-0.01, 1.01))
@@ -697,10 +717,11 @@ def _plot_one_parameter_row_for_metric_pair(
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax_gini.get_legend_handles_labels()
     if lines1 or lines2:
-        ax.legend(
-            lines1 + lines2, labels1 + labels2,
-            fontsize=10, loc="best", framealpha=0.85,
-        )
+        if parameter_name != 'lambda_min': # do not display legend for lambda_min and column 2
+            ax.legend(
+                lines1 + lines2, labels1 + labels2,
+                fontsize=8, loc='best', framealpha=0.85,
+            )
 
     # _make_panel_square(ax)
 
@@ -728,10 +749,8 @@ def _plot_one_parameter_row_for_metric_pair(
         ax,
         xlabel=xlabel,
         ylabel="Adjacency",
+        color='blue',
     )
-
-    ax.set_ylabel("Adjacency", color="blue")
-    ax.tick_params(axis="y", colors="blue")
 
     ax2 = ax.twinx()
 
@@ -757,8 +776,12 @@ def _plot_one_parameter_row_for_metric_pair(
         show_iqr=True,
     )
 
-    ax2.set_ylabel("Entanglement", color="green")
-    ax2.tick_params(axis="y", colors="green")
+    _style_axis(
+        ax2,
+        xlabel='',
+        ylabel="Entanglement",
+        color='green',
+    )
 
     if metric_ylim is not None:
         ax.set_ylim(metric_ylim)
@@ -769,7 +792,7 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=10, loc="best", framealpha=0.85,
+            fontsize=8, loc="best", framealpha=0.85,
         )
 
     # _make_panel_square(ax)
@@ -953,7 +976,7 @@ def parse_args():
     parser.add_argument(
         "--formats",
         nargs="+",
-        default=["pdf"],
+        default=["png"],
         choices=["png", "pdf", "svg"],
         help="Formats de sortie.",
     )
@@ -979,9 +1002,9 @@ def main():
     out_dir = Path(args.out_dir)
     formats = args.formats
 
-    for old_fig in out_dir.glob("fig_*.*"):
-        if old_fig.suffix.lower() in [".png", ".pdf", ".svg"]:
-            old_fig.unlink()
+    # for old_fig in out_dir.glob("fig_*.*"):
+    #     if old_fig.suffix.lower() in [".png", ".pdf", ".svg"]:
+    #         old_fig.unlink()
 
     data_Tbmin, data_lambda_min, data_sigma = load_all_data(args)
 
