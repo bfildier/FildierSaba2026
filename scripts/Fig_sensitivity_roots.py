@@ -8,8 +8,6 @@ Le script lit les CSV de sensibilite :
     Tb_core
     lambda_min
     sigma
-    lambda_max
-    delta_t
 
 Il produit les figures PNG/PDF/SVG dans OUT_DIR.
 
@@ -39,7 +37,7 @@ import math
 import matplotlib as mpl
 
 mpl.rcParams['text.usetex'] = True
-mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] #for \text command
+mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}' #for \text command
 
 
 # =============================================================================
@@ -556,7 +554,7 @@ def _plot_one_parameter_row_for_metric_pair(
     parameter_name: str,
     ia_metric: str,
     ie_metric: str,
-    n_ylim=(0, 200),
+    n_ylim=(0, 250),
     metric_ylim=(-0.01, 1.01),
     fs_legend=10,
 ) -> bool:
@@ -625,7 +623,8 @@ def _plot_one_parameter_row_for_metric_pair(
     )
 
     if n_ylim is not None:
-        ax.set_ylim(n_ylim)
+        dn = n_ylim[1]-n_ylim[0]
+        ax.set_ylim([-0.01*dn,1.01*dn])
 
     ax2 = ax.twinx()
 
@@ -686,7 +685,7 @@ def _plot_one_parameter_row_for_metric_pair(
     )
 
     if plotted_env:
-        ax.set_ylim((-0.01, 1.05))
+        ax.set_ylim((-0.01, 1.01))
 
     # ax.set_ylabel("Normalized envelope area", color="purple")
     # ax.tick_params(axis="y", colors="purple")
@@ -839,7 +838,7 @@ def plot_focus_grouped_by_metric_pair(
             x_parameter="sigma_km",
             xlabel=r"$\sigma$ (km)",
             default_x=30,
-            n_ylim=(0, 200),
+            n_ylim=(0, 250),
             metric_ylim=metric_ylim,
         ),
         dict(
@@ -857,7 +856,7 @@ def plot_focus_grouped_by_metric_pair(
             x_parameter="Tb_seed_K",
             xlabel=r"$T_{b,core}$ (K)",
             default_x=220,
-            n_ylim=(0, 200),
+            n_ylim=(0, 250),
             metric_ylim=metric_ylim,
         ),
     ]

@@ -5,11 +5,7 @@ Reproduction en script Python des figures du notebook :
     EGU_sensitivity_analysis.ipynb
 
 Le script lit les CSV de sensibilite :
-    Tb_core
-    lambda_min
-    sigma
     lambda_max
-    delta_t
 
 Il produit les figures PNG/PDF/SVG dans OUT_DIR.
 
@@ -39,7 +35,7 @@ import math
 import matplotlib as mpl
 
 mpl.rcParams['text.usetex'] = True
-mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] #for \text command
+mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}' #for \text command
 
 
 # =============================================================================
@@ -113,13 +109,13 @@ def _safe_div(num, den):
 def load_all_data(args) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Charge directement les CSV "*_enriched.csv" deja calcules,
-    sans recalcul d'aucune colonne derivee.
+    sans calcul d'aucune colonne derivee.
 
-    On ignore pour l'instant lambda_max et delta_t.
+    On se concentre sur lambda_max.
     """
     data_path = args.data_path
 
-    varids = ["Tbmin", "lambda_min", "sigma"]
+    varids = ["lambda_max"]
 
     loaded = {}
 
@@ -144,7 +140,7 @@ def load_all_data(args) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         loaded[varid] = df
 
-    return loaded["Tbmin"], loaded["lambda_min"], loaded["sigma"]
+    return loaded["lambda_max"]
 
 
 # =============================================================================
@@ -270,7 +266,7 @@ PARAMETER_TITLES = {
     "lambda_min": r"$\lambda_{core}$",
     "lambda_max": r"$\lambda_{agg}$",
     "Tbmin": r"$T_{b,core}$",
-    "delta_t": r"$\tau_{agg}$",
+    "delta_t": r"$\tau$",
     "all_parameters": "All parameters",
 }
 
@@ -535,15 +531,15 @@ def _style_axis(ax, *, xlabel: str, ylabel: str, color: str, title: Optional[str
     ax.grid(True, linestyle="--", alpha=0.25)
 
 
-def _make_panel_square(ax) -> None:
-    """
-    Force un panel carre, de maniere compatible avec les anciennes
-    versions de matplotlib (set_box_aspect n'existe qu'a partir de 3.3).
-    """
-    try:
-        ax.set_box_aspect(1)
-    except AttributeError:
-        pass
+# def _make_panel_square(ax) -> None:
+#     """
+#     Force un panel carre, de maniere compatible avec les anciennes
+#     versions de matplotlib (set_box_aspect n'existe qu'a partir de 3.3).
+#     """
+#     try:
+#         ax.set_box_aspect(1)
+#     except AttributeError:
+#         pass
 
 
 def _plot_one_parameter_row_for_metric_pair(
@@ -625,7 +621,8 @@ def _plot_one_parameter_row_for_metric_pair(
     )
 
     if n_ylim is not None:
-        ax.set_ylim(n_ylim)
+        dn = n_ylim[1]-n_ylim[0]
+        ax.set_ylim([-0.01*dn,1.01*dn])
 
     ax2 = ax.twinx()
 
@@ -654,7 +651,7 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=fs_legend, loc="best", framealpha=0.85,
+            fontsize=fs_legend, loc="upper right", framealpha=0.85,
         )
 
     # _make_panel_square(ax)
@@ -686,7 +683,7 @@ def _plot_one_parameter_row_for_metric_pair(
     )
 
     if plotted_env:
-        ax.set_ylim((-0.01, 1.05))
+        ax.set_ylim((-0.01, 1.01))
 
     # ax.set_ylabel("Normalized envelope area", color="purple")
     # ax.tick_params(axis="y", colors="purple")
@@ -721,7 +718,7 @@ def _plot_one_parameter_row_for_metric_pair(
         if parameter_name != 'lambda_min': # do not display legend for lambda_min and column 2
             ax.legend(
                 lines1 + lines2, labels1 + labels2,
-                fontsize=fs_legend, loc='best', framealpha=0.85,
+                fontsize=fs_legend, loc='lower left', framealpha=0.85,
             )
 
     # _make_panel_square(ax)
@@ -793,7 +790,7 @@ def _plot_one_parameter_row_for_metric_pair(
     if lines1 or lines2:
         ax.legend(
             lines1 + lines2, labels1 + labels2,
-            fontsize=fs_legend, loc="best", framealpha=0.85,
+            fontsize=fs_legend, loc="right", framealpha=0.85,
         )
 
     # _make_panel_square(ax)
@@ -805,9 +802,7 @@ def plot_focus_grouped_by_metric_pair(
     *,
     ia_metric: str,
     ie_metric: str,
-    data_sigma: pd.DataFrame,
-    data_lambda_min: pd.DataFrame,
-    data_Tbmin: pd.DataFrame,
+    data: pd.DataFrame,
     out_dir: Path,
     formats: Iterable[str],
 ):
@@ -815,11 +810,7 @@ def plot_focus_grouped_by_metric_pair(
     Produit une seule figure pour une paire IA/IE.
 
     Lignes :
-      sigma
-      lambda_min
-      Tbmin
-
-    (lambda_max et delta_t sont ignores pour l'instant)
+        lambda_max
 
     Colonnes :
       1. Nombre + fraction 1 - n_i/n_f
@@ -834,30 +825,12 @@ def plot_focus_grouped_by_metric_pair(
 
     parameter_specs = [
         dict(
-            parameter_name="sigma",
-            data=data_sigma,
-            x_parameter="sigma_km",
-            xlabel=r"$\sigma$ (km)",
-            default_x=30,
-            n_ylim=(0, 200),
-            metric_ylim=metric_ylim,
-        ),
-        dict(
-            parameter_name="lambda_min",
-            data=data_lambda_min,
-            x_parameter="lambda_min_km",
-            xlabel=r"$\lambda_{core}$ (km)",
-            default_x=100,
-            n_ylim=(0, 500),
-            metric_ylim=metric_ylim,
-        ),
-        dict(
-            parameter_name="Tbmin",
-            data=data_Tbmin,
-            x_parameter="Tb_seed_K",
-            xlabel=r"$T_{b,core}$ (K)",
-            default_x=220,
-            n_ylim=(0, 200),
+            parameter_name="lambda_max_km",
+            data=data,
+            x_parameter="lambda_max_km",
+            xlabel=r"$\lambda_{agg}$ (km)",
+            default_x=1500,
+            n_ylim=(0, 250),
             metric_ylim=metric_ylim,
         ),
     ]
@@ -903,7 +876,7 @@ def plot_focus_grouped_by_metric_pair(
     grouped_out_dir.mkdir(parents=True, exist_ok=True)
 
     # stem = f"fig_by_metric_{ia_metric}_{ie_metric}_all_parameters"
-    stem = f"fig_sensitivity_roots"
+    stem = f"fig_sensitivity_lambda_agg"
 
     if n_ok == 0:
         print(f"[SKIP] figure {ia_metric}/{ie_metric}: aucune ligne traçable.")
@@ -915,9 +888,7 @@ def plot_focus_grouped_by_metric_pair(
 
 def plot_all_focus_IA_IE_pairs(
     *,
-    data_sigma: pd.DataFrame,
-    data_lambda_min: pd.DataFrame,
-    data_Tbmin: pd.DataFrame,
+    data: pd.DataFrame,
     out_dir: Path,
     formats: Iterable[str],
     suffixes: Iterable[str] = DEFAULT_METRIC_SUFFIXES,
@@ -940,12 +911,11 @@ def plot_all_focus_IA_IE_pairs(
         ia_metric = f"IA{suffix}"
         ie_metric = f"IE{suffix}"
 
+
         plot_focus_grouped_by_metric_pair(
             ia_metric=ia_metric,
             ie_metric=ie_metric,
-            data_sigma=data_sigma,
-            data_lambda_min=data_lambda_min,
-            data_Tbmin=data_Tbmin,
+            data=data,
             out_dir=out_dir,
             formats=formats,
         )
@@ -1007,12 +977,10 @@ def main():
     #     if old_fig.suffix.lower() in [".png", ".pdf", ".svg"]:
     #         old_fig.unlink()
 
-    data_Tbmin, data_lambda_min, data_sigma = load_all_data(args)
+    data_lambda_agg = load_all_data(args)
 
     plot_all_focus_IA_IE_pairs(
-        data_sigma=data_sigma,
-        data_lambda_min=data_lambda_min,
-        data_Tbmin=data_Tbmin,
+        data=data_lambda_agg,
         out_dir=out_dir,
         formats=formats,
         suffixes=args.metric_suffixes,
