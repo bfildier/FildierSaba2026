@@ -27,6 +27,8 @@ Sortie :
 
 import os, glob, re, string, copy
 from pathlib import Path
+import faulthandler
+faulthandler.enable()
 
 import numpy as np
 import pandas as pd
@@ -35,6 +37,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize, ListedColormap, BoundaryNorm
 from datetime import datetime, timedelta
 from scipy import ndimage
+import warnings
+
+warnings.filterwarnings("ignore", message=".*multiple fill values.*")
 
 DIR_DATA = '/bdd/GEOgrid_coldcloud'
 
@@ -259,6 +264,7 @@ def _load_case_range(dir_data, sat, time_start, time_end, lat_c, lon_c,
 
     das = []
     for file_dt, path in files_times:
+        print("Load",path)
         ds = xr.open_dataset(path)
         try:
             da = ds[var_raw]
@@ -441,8 +447,15 @@ def plot_case_labels_range(
     thresholds = [float(threshold1_k), float(threshold2_k)]
     n_rows = len(thresholds)
 
+    # colors
     tb_norm = Normalize(vmin, vmax, clip=True)
     tb_cmap = copy.copy(plt.get_cmap(cmap_tb))
+
+    # coordinates
+    lat = full.latitude.values
+    lon = full.longitude.values
+    extent = [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
+    Lon2d, Lat2d = np.meshgrid(lon, lat)
 
     fig = plt.figure(figsize=(panel_size * n_cols, panel_size * n_rows), dpi=dpi, facecolor="white")
 
@@ -451,22 +464,16 @@ def plot_case_labels_range(
     panel_count = 0
 
     for row, thresh in enumerate(thresholds):
-
-        arr_full = full.values
-
-        # composantes connexes
-        labels_masked, n_labels = _label_field(arr_full, thresh, connectivity=connectivity)
+        
+        # composantes connexes x-y-t
+        labels_masked, n_labels = _label_field(full.values, thresh, connectivity=connectivity)
         lab_cmap, lab_norm = _label_cmap_norm(n_labels,base_cmap="Set3")
-
+        
         for col, ti in enumerate(snap_idx):
             frame = full.isel(time=ti)
-            lat = frame.latitude.values
-            lon = frame.longitude.values
-            arr = frame.values
-            extent = [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
-            Lon2d, Lat2d = np.meshgrid(lon, lat)
             t_used = pd.to_datetime(frame.time.values).strftime("%Y-%m-%d %H:%M")
-
+            
+            # create new panel
             ax = fig.add_subplot(n_rows, n_cols, row * n_cols + col + 1, projection=ccrs.PlateCarree())
             ax.set_extent(extent, crs=ccrs.PlateCarree())
             ax.coastlines("110m", linewidth=coast_lw)
@@ -479,7 +486,7 @@ def plot_case_labels_range(
 
             # fond : champ Tb en niveaux de gris
             im_tb = ax.pcolormesh(
-                Lon2d, Lat2d, arr,
+                Lon2d, Lat2d, frame.values,
                 transform=ccrs.PlateCarree(),
                 cmap=tb_cmap, norm=tb_norm, shading="auto",
             )
@@ -496,7 +503,7 @@ def plot_case_labels_range(
 
             # contour du seuil, pour repère visuel
             ax.contour(
-                Lon2d, Lat2d, arr,
+                Lon2d, Lat2d, frame.values,
                 levels=[thresh], colors="red", linewidths=0.4,
                 transform=ccrs.PlateCarree(),
             )
@@ -541,7 +548,7 @@ if __name__ == "__main__":
     cases_list_file = '/home/bfildier/analyses/FildierSaba2026/input/cases.csv'
     cases_df = pd.read_csv(cases_list_file, sep=';')
 
-    CASE_ID = "RC18"  # <- cas choisi par l'utilisateur
+    CASE_ID = "RC5"  # <- cas choisi par l'utilisateur
 
     plot_case_labels_range(
         case_id=CASE_ID,
@@ -553,8 +560,8 @@ if __name__ == "__main__":
         # time_end="2016-04-20T05:45",
         threshold1_k=220.0,   # seuil 1
         threshold2_k=210.0,   # seuil "coeur" convectif
-        lag_hours=24,   # <- intervalle de temps entre panneaux
-        lag_centering=[-1,0,1,2],# [-2,-1,0,1], #
+        lag_hours=5,   # <- intervalle de temps entre panneaux
+        lag_centering=[-2,-1,0,1], #[-1,0,1,2],# 
         n_snapshots=4,
         delta_lat=30,
         delta_lon=30,

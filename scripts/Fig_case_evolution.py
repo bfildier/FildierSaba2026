@@ -406,6 +406,6 @@ if __name__ == "__main__":
         # lag_centering=[-1,0,1,2],
         delta_lat=30,
         delta_lon=30,
-        output_path=f"../figures/tests/fig_{CASE_ID}_evolution.png",
+        output_path=f"../figures/tests/fig_evolution_{CASE_ID}.png",
         contour_level_k=210.0,
     )
