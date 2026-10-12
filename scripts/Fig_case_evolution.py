@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from math import ceil
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from datetime import datetime, timedelta
@@ -38,7 +39,7 @@ show_coords = {
     "RC8": ("2016-06-04T00:30", 5, 20), # Upscale circular merging (several aggregates)
     "RC9": ("2016-07-01T18:30", 10, 20), # Partial upscale merging + coupling to AEW
     "RC10": ("2016-07-23T03:30", 7.5, 20), # Upscale circular merging (several aggregates)
-    "RC11": ("2016-07-05T12:00", 5.0, 20), # Multi-day upscale merging
+    "RC11": ("2016-07-05T16:00", 5.0, 20), # Multi-day upscale merging
     "RC12": ("2016-07-17T16:00", 2.5, 22), # Disjoint aggregate non merging (except southern part)
     "RC13": ("2016-06-09T21:00", 10, 0), # AEW
     "RC14": ("2016-08-06T20:30", 5.0, 25.0), # Disjoint aggregate non merging (except southern part)
@@ -305,13 +306,22 @@ def plot_case_lags(
         cmap.set_bad("white")
 
     n_panels = len(lag_centering)
+    # go to line if #(panels) > 4
+    n_rows = ceil(n_panels/4)
+    n_cols = ceil(n_panels/n_rows)
     lags_hours = tuple(lag_hours*np.array(lag_centering,dtype=float))
-    fig = plt.figure(figsize=(panel_size * n_panels, panel_size), dpi=dpi, facecolor="white")
+
+    fig = plt.figure(figsize=(panel_size * n_cols, panel_size*n_rows), dpi=dpi, facecolor="white")
 
     last_im = None
     panel_letters = list(string.ascii_lowercase)
 
     for k, lag_h in enumerate(lags_hours):
+
+        # panel coordinates
+        row = int(k/n_cols)
+        col = k%n_cols
+
         time_str = (ref_time + timedelta(hours=lag_h)).strftime("%Y-%m-%dT%H:%M")
         panel_label = f"({panel_letters[k]})" if k < len(panel_letters) else f"({k + 1})"
 
@@ -320,7 +330,7 @@ def plot_case_lags(
         print("--------------------------------------------------")
         print("time: %s" % time_str)
 
-        ax = fig.add_subplot(1, n_panels, k + 1, projection=ccrs.PlateCarree())
+        ax = fig.add_subplot(n_rows, n_cols, k + 1, projection=ccrs.PlateCarree())
 
         try:
             Lon2d, Lat2d, arr, extent, t_used, file_used = _extract_frame(
@@ -341,8 +351,8 @@ def plot_case_lags(
         gl = ax.gridlines(draw_labels=True, x_inline=False, y_inline=False,
                            linewidth=coast_lw * 0.5, linestyle="-", color="gray", alpha=grid_alpha)
         gl.top_labels = gl.right_labels = False
-        gl.left_labels = True
-        gl.bottom_labels = True
+        gl.left_labels = (col == 0)
+        gl.bottom_labels = (row == n_rows - 1)
 
         arr_masked = np.ma.array(arr, mask=~np.isfinite(arr) | (arr >= mask_above_k))
 
@@ -369,12 +379,12 @@ def plot_case_lags(
                           edgecolor="none", alpha=0.7))
 
     if last_im is not None:
-        cax = fig.add_axes([0.30, -0.04, 0.4, 0.03])
+        cax = fig.add_axes([0.30, 0.04*(-1)**n_rows, 0.4, 0.03/n_rows]) # vertical spacing only works for 1 or 2 rows
         cb = fig.colorbar(last_im, cax=cax, orientation="horizontal")
         cb.set_label('Infrared brightness temperature (K)', fontsize=12)
         cb.ax.tick_params(labelsize=12)
 
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.90, bottom=0.12, wspace=0.05)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.90, bottom=0.12, wspace=0.05,hspace=0.15)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, bbox_inches="tight")
@@ -393,7 +403,7 @@ if __name__ == "__main__":
     cases_list_file = '/home/bfildier/analyses/FildierSaba2026/input/cases.csv'
     cases_df = pd.read_csv(cases_list_file, sep=';')
 
-    CASE_ID = "RC18"  # <- cas choisi par l'utilisateur
+    CASE_ID = "RC11"  # <- cas choisi par l'utilisateur
 
     plot_case_lags(
         case_id=CASE_ID,
@@ -401,9 +411,10 @@ if __name__ == "__main__":
         show_coords=show_coords,
         dir_data=DIR_DATA,
         var_raw="Harmonized_irBT",
-        lag_hours=12,   # <- intervalle de temps entre panneaux
-        lag_centering=[-2,-1,0,1],
+        lag_hours=4,   # <- intervalle de temps entre panneaux
+        # lag_centering=[-2,-1,0,1],
         # lag_centering=[-1,0,1,2],
+        lag_centering=[-5,-4,-3,-2,-1,0,1,2],
         delta_lat=30,
         delta_lon=30,
         output_path=f"../figures/tests/fig_evolution_{CASE_ID}.png",

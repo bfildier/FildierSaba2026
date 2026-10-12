@@ -38,7 +38,7 @@ show_coords = {
     "C9": ("2016-06-04T00:30", 5, 20), # Upscale circular merging (several aggregates)
     "C10": ("2016-07-01T18:30", 10, 20), # Partial upscale merging + coupling to AEW
     "C11": ("2016-07-23T03:30", 7.5, 20), # Upscale circular merging (several aggregates)
-    "C12": ("2016-07-05T12:00", 5.0, 20), # Multi-day upscale merging (here, not Tbmin but decaying phase, showing remianing fronline, appearance of new individual convective towers)
+    "C12": ("2016-07-05T16:00", 5.0, 20), # Multi-day upscale merging (here, not Tbmin but decaying phase, showing remianing fronline, appearance of new individual convective towers)
     "C13": ("2016-07-17T16:00", 2.5, 22), # Disjoint aggregate non merging (except southern part)
     "C14": ("2016-06-09T21:00", 10, 0), # AEW
     "C15": ("2016-08-06T20:30", 5.0, 25.0), # Disjoint aggregate non merging (except southern part)

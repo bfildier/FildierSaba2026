@@ -54,7 +54,7 @@ show_coords = {
     "RC8": ("2016-06-04T00:30", 5, 20), # Upscale circular merging (several aggregates)
     "RC9": ("2016-07-01T18:30", 10, 20), # Partial upscale merging + coupling to AEW
     "RC10": ("2016-07-23T03:30", 7.5, 20), # Upscale circular merging (several aggregates)
-    "RC11": ("2016-07-05T12:00", 5.0, 20), # Multi-day upscale merging
+    "RC11": ("2016-07-05T16:00", 5.0, 20), # Multi-day upscale merging
     "RC12": ("2016-07-17T16:00", 2.5, 22), # Disjoint aggregate non merging (except southern part)
     "RC13": ("2016-06-09T21:00", 10, 0), # AEW
     "RC14": ("2016-08-06T20:30", 5.0, 25.0), # Disjoint aggregate non merging (except southern part)
@@ -548,7 +548,7 @@ if __name__ == "__main__":
     cases_list_file = '/home/bfildier/analyses/FildierSaba2026/input/cases.csv'
     cases_df = pd.read_csv(cases_list_file, sep=';')
 
-    CASE_ID = "RC5"  # <- cas choisi par l'utilisateur
+    CASE_ID = "RC11"  # <- cas choisi par l'utilisateur
 
     plot_case_labels_range(
         case_id=CASE_ID,
@@ -560,8 +560,9 @@ if __name__ == "__main__":
         # time_end="2016-04-20T05:45",
         threshold1_k=220.0,   # seuil 1
         threshold2_k=210.0,   # seuil "coeur" convectif
-        lag_hours=5,   # <- intervalle de temps entre panneaux
-        lag_centering=[-2,-1,0,1], #[-1,0,1,2],# 
+        lag_hours=8,   # <- intervalle de temps entre panneaux
+        # lag_centering=[-2,-1,0,1], #[-1,0,1,2],# 
+        lag_centering=[-2,-1,0,1],
         n_snapshots=4,
         delta_lat=30,
         delta_lon=30,
